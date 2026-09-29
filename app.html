@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no, viewport-fit=cover" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Bocho VR" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <title>VR Interactive - Escenario Bocho (Homido & Cardboard Stereo)</title>
 
     <!-- A-Frame Library (v1.5.0) - Incluye soporte nativo y polyfills para WebVR/WebXR -->
@@ -18,6 +20,8 @@
         padding: 0;
         width: 100%;
         height: 100%;
+        height: -webkit-fill-available;
+        height: 100dvh;
         overflow: hidden;
         background-color: #000000 !important;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -27,6 +31,10 @@
 
       a-scene {
         background-color: #000000 !important;
+        width: 100%;
+        height: 100%;
+        height: -webkit-fill-available;
+        height: 100dvh;
       }
 
       /* Linea divisoria central para el tabique del visor VR (Homido / Cardboard) */
@@ -420,7 +428,7 @@
           this.followModeType = 'chase'; // 'chase' (detras), 'side' (lateral), 'roof' (techo)
           this.tempVec = new THREE.Vector3();
 
-          // Mantener pantalla encendida en visor (WakeLock API)
+          // Mantener pantalla encendida en visor (WakeLock API) y permisos iOS
           this.initWakeLock();
 
           // Inicializar boton Cardboard en la esquina inferior izquierda
@@ -603,10 +611,23 @@
               e.preventDefault();
             }
             try { SoundFX.click(); } catch(err) {}
+
+            // Permiso obligatorio de Giroscopio en iOS Safari (iPhone / iPad)
+            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+              DeviceOrientationEvent.requestPermission().then(state => {
+                if (state === 'granted') {
+                  console.log('Permiso de giroscopio concedido en iOS');
+                }
+              }).catch(() => {});
+            }
+            if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+              DeviceMotionEvent.requestPermission().catch(() => {});
+            }
+
             inVR = !inVR;
 
             if (inVR) {
-              // 1. Activar pantalla completa
+              // 1. Activar pantalla completa (funciona en Android y navegadores de escritorio)
               try {
                 const el = document.documentElement;
                 const rfs = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
@@ -666,6 +687,9 @@
           };
 
           btn.addEventListener('click', toggleVR);
+          btn.addEventListener('touchend', (e) => {
+            toggleVR(e);
+          }, { passive: false });
 
           // Si el usuario sale de pantalla completa con la tecla ESC o gesto del sistema
           const onFSChange = () => {
@@ -686,8 +710,13 @@
                 console.log('WakeLock activado: la pantalla no se suspendera.');
               } catch(e) {}
             }
+            // En iOS, pedir permiso de orientacion al primer toque del usuario
+            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+              DeviceOrientationEvent.requestPermission().catch(() => {});
+            }
           };
           document.addEventListener('click', tryLock, { once: true });
+          document.addEventListener('touchend', tryLock, { once: true });
         },
 
         getController: function () {
