@@ -1,89 +1,1053 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Homido GRAB WebVR Interactive</title>
-    <!-- A-Frame Library -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>VR Interactive - Escenario Bocho (Homido & Cardboard Stereo)</title>
+
+    <!-- A-Frame Library (v1.5.0) - Incluye soporte nativo y polyfills para WebVR/WebXR -->
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
-  </head>
-  <body>
-    <a-scene embedded vr-mode-ui="enabled: true">
-      <!-- Asset Management -->
-      <a-assets>
-        <audio id="pop-sound" src="https://cdn.aframe.io/360-image-gallery-boilerplate/audio/click.ogg" response-type="arraybuffer" crossorigin="anonymous"></audio>
-      </a-assets>
+    <!-- A-Frame Extras para soporte oficial de AnimationMixer -->
+    <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.5.0/dist/aframe-extras.min.js"></script>
 
-      <!-- Environment -->
-      <a-sky color="#111827"></a-sky>
-      <a-ambient-light color="#666666"></a-ambient-light>
-      <a-directional-light position="-1 2 1" intensity="0.8"></a-directional-light>
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background-color: #000000 !important;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        -webkit-user-select: none;
+        user-select: none;
+      }
 
-      <!-- Camera Rig with Spatial Listener -->
-      <a-entity id="rig" position="0 1.6 0">
-        <a-camera look-controls sound="positional: true">
-          <a-cursor
-            id="cursor"
-            raycaster="objects: .clickable"
-            color="#FFFFFF"
-            position="0 0 -1"
-            geometry="primitive: ring; radiusInner: 0.02; radiusOuter: 0.03"
-            animation__click="property: scale; startEvents: click; dur: 150; from: 0.1 0.1 0.1; to: 1 1 1">
-          </a-cursor>
-        </a-camera>
-      </a-entity>
+      a-scene {
+        background-color: #000000 !important;
+      }
 
-      <!-- Interactive Box (Color Change & Sound) -->
-      <a-box
-        class="clickable"
-        position="-1.5 1.5 -3"
-        rotation="0 45 0"
-        color="#3B82F6"
-        sound="src: #pop-sound; on: click; poolSize: 2"
-        change-color>
-      </a-box>
+      /* Linea divisoria central para el tabique del visor VR (Homido / Cardboard) */
+      #vr-center-divider {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 50%;
+        width: 3px;
+        height: 100%;
+        background: #000000;
+        box-shadow: 0 0 6px rgba(0, 0, 0, 0.8);
+        transform: translateX(-50%);
+        pointer-events: none;
+        z-index: 99998;
+      }
 
-      <!-- Interactive Sphere (Scale Bump & Sound) -->
-      <a-sphere
-        class="clickable"
-        position="1.5 1.5 -3"
-        radius="0.8"
-        color="#EF4444"
-        sound="src: #pop-sound; on: click; poolSize: 2"
-        pulse-on-click>
-      </a-sphere>
+      /* Instrucciones 2D en pantalla (esquina superior izquierda) */
+      #ui-overlay {
+        position: fixed;
+        top: 16px;
+        left: 16px;
+        z-index: 9999;
+        color: #ffffff;
+        background: rgba(15, 23, 42, 0.85);
+        backdrop-filter: blur(8px);
+        padding: 8px 14px;
+        border-radius: 10px;
+        font-size: 13px;
+        box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+        border: 1px solid rgba(255,255,255,0.1);
+        pointer-events: none;
+      }
+      #ui-overlay strong {
+        color: #38bdf8;
+      }
 
-      <!-- Ground Plane -->
-      <a-plane position="0 0 -4" rotation="-90 0 0" width="10" height="10" color="#1F2937"></a-plane>
-    </a-scene>
+      /* Boton Google Cardboard en la esquina inferior izquierda */
+      #cardboard-btn {
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        z-index: 99999;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: rgba(15, 23, 42, 0.92);
+        backdrop-filter: blur(10px);
+        color: #ffffff;
+        border: 2px solid #38bdf8;
+        border-radius: 50px;
+        padding: 10px 18px;
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        cursor: pointer;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5), 0 0 14px rgba(56, 189, 248, 0.35);
+        transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+      }
+      #cardboard-btn:hover {
+        transform: scale(1.05);
+        background: #0284c7;
+        box-shadow: 0 6px 24px rgba(2, 132, 199, 0.6);
+      }
+      #cardboard-btn:active {
+        transform: scale(0.95);
+      }
+      #cardboard-btn svg {
+        width: 26px;
+        height: 26px;
+        fill: none;
+        stroke: #ffffff;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
 
-    <!-- Custom Interaction Scripts -->
+      /* Aviso de rotacion en moviles */
+      #rotate-notice {
+        display: none;
+        position: fixed;
+        top: 16px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(2, 132, 199, 0.9);
+        color: white;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 500;
+        z-index: 99999;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      }
+
+      @media (max-width: 768px) and (orientation: portrait) {
+        #rotate-notice {
+          display: block;
+        }
+        #ui-overlay {
+          display: none;
+        }
+      }
+    </style>
+
+    <!-- Componentes de Animacion, Audio, Menu y Stereo SBS -->
     <script>
-      // Component 1: Changes object color randomly on click/tap
-      AFRAME.registerComponent('change-color', {
+      // Sonidos sinteticos UI (cero dependencias externas / sin problemas CORS)
+      const SoundFX = {
+        ctx: null,
+        init: function() {
+          if (!this.ctx) {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (AudioCtx) this.ctx = new AudioCtx();
+          }
+        },
+        click: function() {
+          try {
+            this.init();
+            if (!this.ctx) return;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(600, this.ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(1000, this.ctx.currentTime + 0.08);
+            gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.08);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start();
+            osc.stop(this.ctx.currentTime + 0.08);
+          } catch(e) {}
+        },
+        hover: function() {
+          try {
+            this.init();
+            if (!this.ctx) return;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(440, this.ctx.currentTime);
+            gain.gain.setValueAtTime(0.05, this.ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.04);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start();
+            osc.stop(this.ctx.currentTime + 0.04);
+          } catch(e) {}
+        }
+      };
+
+      // Componente que garantiza la pantalla dividida estereoscopica SBS calibrada para DPR
+      AFRAME.registerComponent('cardboard-stereo', {
+        schema: {
+          enabled: { default: false },
+          eyeSep: { default: 0.064 }
+        },
         init: function () {
-          const colors = ['#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#3B82F6'];
-          this.el.addEventListener('click', () => {
-            const randomColor = colors[Math.floor(Math.random() * colors.length)];
-            this.el.setAttribute('color', randomColor);
+          this.stereoCam = new THREE.StereoCamera();
+          this.stereoCam.aspect = 0.5; // Factor 0.5: cada ojo ocupa la mitad del ancho del FOV
+          this.stereoCam.eyeSep = this.data.eyeSep;
+          this.stereoCam.cameraL.matrixWorldAutoUpdate = false;
+          this.stereoCam.cameraR.matrixWorldAutoUpdate = false;
+          this.stereoCam.cameraL.matrixAutoUpdate = false;
+          this.stereoCam.cameraR.matrixAutoUpdate = false;
+          this.sizeVec = new THREE.Vector2();
+          this.isActive = false;
+          this.scene = this.el.sceneEl;
+        },
+        update: function () {
+          if (this.data.enabled && !this.isActive) {
+            this.enableStereo();
+          } else if (!this.data.enabled && this.isActive) {
+            this.disableStereo();
+          }
+        },
+        enableStereo: function () {
+          const scene = this.scene;
+          const renderer = scene.renderer;
+          if (!renderer) {
+            scene.addEventListener('render-target-loaded', () => this.enableStereo(), { once: true });
+            return;
+          }
+
+          if (!renderer._originalRender) {
+            renderer._originalRender = renderer.render.bind(renderer);
+          }
+          const originalRender = renderer._originalRender;
+          const stereoCam = this.stereoCam;
+          const sizeVec = this.sizeVec;
+          const self = this;
+
+          renderer.render = function (threeScene, camera) {
+            if (!self.isActive || !camera) {
+              return originalRender(threeScene, camera);
+            }
+
+            try {
+              // Obtener dimensiones LOGICAS del renderer (NO canvas.width fisico, para evitar multiplicar dos veces por DPR en moviles)
+              renderer.getSize(sizeVec);
+              const w = sizeVec.x;
+              const h = sizeVec.y;
+
+              // Validar que las dimensiones sean positivas durante giros de pantalla
+              if (w <= 0 || h <= 0) {
+                return originalRender(threeScene, camera);
+              }
+
+              // Sincronizar planos de recorte (near y far) para abarcar todo el modelo a 28,000m
+              stereoCam.cameraL.near = camera.near || 0.1;
+              stereoCam.cameraL.far = camera.far || 50000;
+              stereoCam.cameraR.near = camera.near || 0.1;
+              stereoCam.cameraR.far = camera.far || 50000;
+
+              // En Three.js StereoCamera, aspect es un factor multiplicador (0.5 = mitad horizontal)
+              stereoCam.aspect = 0.5;
+              stereoCam.eyeSep = self.data.eyeSep;
+
+              camera.updateMatrixWorld();
+              stereoCam.update(camera);
+
+              // Evitar que Three.js resetee las matrices al origen (0, 0, 0)
+              stereoCam.cameraL.matrixWorldNeedsUpdate = false;
+              stereoCam.cameraR.matrixWorldNeedsUpdate = false;
+
+              const halfW = Math.floor(w / 2);
+
+              renderer.autoClear = false;
+              renderer.clear();
+
+              // 1. OJO IZQUIERDO (Mitad izquierda de la pantalla en coords logicas)
+              renderer.setViewport(0, 0, halfW, h);
+              renderer.setScissor(0, 0, halfW, h);
+              renderer.setScissorTest(true);
+              originalRender(threeScene, stereoCam.cameraL);
+
+              // 2. OJO DERECHO (Mitad derecha de la pantalla en coords logicas)
+              renderer.setViewport(halfW, 0, w - halfW, h);
+              renderer.setScissor(halfW, 0, w - halfW, h);
+              renderer.setScissorTest(true);
+              originalRender(threeScene, stereoCam.cameraR);
+
+              // Restaurar estado limpio del renderer
+              renderer.setScissorTest(false);
+              renderer.setViewport(0, 0, w, h);
+              renderer.autoClear = true;
+            } catch (err) {
+              console.error('Stereo SBS render error:', err);
+              originalRender(threeScene, camera);
+            }
+          };
+
+          this.isActive = true;
+          const divider = document.querySelector('#vr-center-divider');
+          if (divider) divider.style.display = 'block';
+          console.log('Modo Estereo Dividido (SBS Cardboard) ACTIVO');
+        },
+        disableStereo: function () {
+          this.isActive = false;
+          const renderer = this.scene.renderer;
+          if (renderer) {
+            renderer.setScissorTest(false);
+            renderer.autoClear = true;
+            renderer.getSize(this.sizeVec);
+            if (this.sizeVec.x > 0 && this.sizeVec.y > 0) {
+              renderer.setViewport(0, 0, this.sizeVec.x, this.sizeVec.y);
+            }
+          }
+          const divider = document.querySelector('#vr-center-divider');
+          if (divider) divider.style.display = 'none';
+          console.log('Modo estereo desactivado');
+        }
+      });
+
+      // Controlador de Animacion y Referencia al Objeto del Carro
+      AFRAME.registerComponent('car-animator-controller', {
+        schema: {
+          autoplay: { default: true },
+          speed: { default: 1.0 }
+        },
+        init: function () {
+          this.mixer = null;
+          this.actions = [];
+          this.isPlaying = this.data.autoplay;
+          this.speed = this.data.speed;
+          this.carObj = null;
+
+          const startAnimation = (root) => {
+            if (!root) return;
+            this.carObj = root.getObjectByName('cubo');
+            if (this.carObj) {
+              console.log('Objeto del auto detectado para seguimiento:', this.carObj);
+            }
+
+            if (this.mixer) return;
+            const animations = root.animations || (this.el.getObject3D('mesh') || {}).animations || [];
+            console.log('Modelo cargado. Animaciones encontradas:', animations.length);
+
+            if (animations.length > 0) {
+              this.mixer = new THREE.AnimationMixer(root);
+              animations.forEach((clip) => {
+                console.log('Reproduciendo clip:', clip.name, 'Duracion:', clip.duration.toFixed(2), 's');
+                const action = this.mixer.clipAction(clip);
+                action.setLoop(THREE.LoopRepeat, Infinity);
+                action.clampWhenFinished = false;
+                action.play();
+                this.actions.push(action);
+              });
+            }
+          };
+
+          const mesh = this.el.getObject3D('mesh');
+          if (mesh && (mesh.animations || mesh.children.length > 0)) {
+            startAnimation(mesh);
+          }
+          this.el.addEventListener('model-loaded', (e) => {
+            startAnimation(e.detail.model || this.el.getObject3D('mesh'));
+          });
+        },
+        tick: function (t, dt) {
+          if (this.mixer && this.isPlaying && dt) {
+            this.mixer.update((dt / 1000) * this.speed);
+          }
+        },
+        togglePlay: function () {
+          this.isPlaying = !this.isPlaying;
+          const extrasMixer = this.el.components['animation-mixer'];
+          if (extrasMixer && extrasMixer.mixer) {
+            extrasMixer.mixer.timeScale = this.isPlaying ? this.speed : 0;
+          }
+          return this.isPlaying;
+        },
+        setSpeed: function (spd) {
+          this.speed = spd;
+          if (this.actions.length > 0) {
+            this.actions.forEach(a => a.setEffectiveTimeScale(spd));
+          }
+          const extrasMixer = this.el.components['animation-mixer'];
+          if (extrasMixer && extrasMixer.mixer) {
+            extrasMixer.mixer.timeScale = this.isPlaying ? spd : 0;
+          }
+        },
+        restart: function () {
+          if (this.actions.length > 0) {
+            this.actions.forEach(a => a.reset());
+          }
+          const extrasMixer = this.el.components['animation-mixer'];
+          if (extrasMixer && extrasMixer.mixer) {
+            extrasMixer.mixer.setTime(0);
+          }
+        },
+        getCarWorldPosition: function (targetVec) {
+          if (this.carObj) {
+            this.carObj.getWorldPosition(targetVec);
+            return true;
+          }
+          return false;
+        }
+      });
+
+      // Efecto hover interactivo para botones del menu
+      AFRAME.registerComponent('menu-button-fx', {
+        schema: {
+          hoverColor: { default: '#2563eb' },
+          baseColor: { default: '#1e293b' }
+        },
+        init: function () {
+          const el = this.el;
+          el.addEventListener('mouseenter', () => {
+            el.setAttribute('material', 'color', this.data.hoverColor);
+            el.setAttribute('scale', '1.05 1.05 1.05');
+            SoundFX.hover();
+          });
+          el.addEventListener('mouseleave', () => {
+            el.setAttribute('material', 'color', this.data.baseColor);
+            el.setAttribute('scale', '1 1 1');
           });
         }
       });
 
-      // Component 2: Triggers a scale pulse animation on click/tap
-      AFRAME.registerComponent('pulse-on-click', {
+      // Logica de interaccion del Menu Flotante, Modo Seguimiento y Boton Cardboard
+      AFRAME.registerComponent('vr-menu-controller', {
         init: function () {
-          this.el.addEventListener('click', () => {
-            this.el.setAttribute('animation', {
-              property: 'scale',
-              to: '1.3 1.3 1.3',
-              dur: 150,
-              dir: 'alternate',
-              loop: 2
+          this.rig = document.querySelector('#rig');
+          this.bochoEntity = document.querySelector('#bocho-model');
+          this.menuPanel = document.querySelector('#menu-panel');
+          this.miniButton = document.querySelector('#menu-minimized-btn');
+          this.scene = document.querySelector('a-scene');
+
+          // Estado del Modo Seguimiento
+          this.followActive = false;
+          this.followModeType = 'chase'; // 'chase' (detras), 'side' (lateral), 'roof' (techo)
+          this.tempVec = new THREE.Vector3();
+
+          // Mantener pantalla encendida en visor (WakeLock API)
+          this.initWakeLock();
+
+          // Inicializar boton Cardboard en la esquina inferior izquierda
+          this.initCardboardButton();
+
+          // 1. Boton Play / Pause
+          const btnPlayPause = document.querySelector('#btn-play-pause');
+          const txtPlayPause = document.querySelector('#txt-play-pause');
+          if (btnPlayPause) {
+            btnPlayPause.addEventListener('click', () => {
+              SoundFX.click();
+              const ctrl = this.getController();
+              if (ctrl) {
+                const isPlaying = ctrl.togglePlay();
+                txtPlayPause.setAttribute('value', isPlaying ? 'Pausar Auto' : 'Reanudar Auto');
+                btnPlayPause.setAttribute('material', 'color', isPlaying ? '#3b82f6' : '#f59e0b');
+              }
             });
-          });
+          }
+
+          // 2. Control de Velocidad
+          const btnSpeed = document.querySelector('#btn-speed');
+          const txtSpeed = document.querySelector('#txt-speed');
+          const speeds = [1.0, 2.0, 0.5];
+          let speedIdx = 0;
+          if (btnSpeed) {
+            btnSpeed.addEventListener('click', () => {
+              SoundFX.click();
+              speedIdx = (speedIdx + 1) % speeds.length;
+              const spd = speeds[speedIdx];
+              const ctrl = this.getController();
+              if (ctrl) ctrl.setSpeed(spd);
+              txtSpeed.setAttribute('value', 'Velocidad: ' + spd + 'x');
+            });
+          }
+
+          // 3. Reiniciar Recorrido
+          const btnRestart = document.querySelector('#btn-restart');
+          if (btnRestart) {
+            btnRestart.addEventListener('click', () => {
+              SoundFX.click();
+              const ctrl = this.getController();
+              if (ctrl) ctrl.restart();
+              if (!this.followActive) {
+                this.rig.setAttribute('position', '-445 4.5 32');
+                this.rig.setAttribute('rotation', '0 25 0');
+              } else {
+                this.snapToFollowImmediate();
+              }
+            });
+          }
+
+          // 4. MODO SEGUIMIENTO
+          const btnFollow = document.querySelector('#btn-follow');
+          const txtFollow = document.querySelector('#txt-follow');
+          const btnFollowType = document.querySelector('#btn-follow-type');
+          const txtFollowType = document.querySelector('#txt-follow-type');
+
+          if (btnFollow) {
+            btnFollow.addEventListener('click', () => {
+              SoundFX.click();
+              this.followActive = !this.followActive;
+              this.updateFollowUI();
+            });
+          }
+
+          if (btnFollowType) {
+            btnFollowType.addEventListener('click', () => {
+              SoundFX.click();
+              if (this.followModeType === 'chase') {
+                this.followModeType = 'side';
+                txtFollowType.setAttribute('value', 'Camara: Lateral');
+              } else if (this.followModeType === 'side') {
+                this.followModeType = 'roof';
+                txtFollowType.setAttribute('value', 'Camara: Techo');
+              } else {
+                this.followModeType = 'chase';
+                txtFollowType.setAttribute('value', 'Camara: Persecucion (Atras)');
+              }
+              if (this.followActive) {
+                this.snapToFollowImmediate();
+              }
+            });
+          }
+
+          // 5. Puntos de Vista Fijos (Desactivan el seguimiento dinamico)
+          const btnCamOrigen = document.querySelector('#btn-cam-origen');
+          const btnCamCentro = document.querySelector('#btn-cam-centro');
+          const btnCamAlta = document.querySelector('#btn-cam-alta');
+
+          if (btnCamOrigen) {
+            btnCamOrigen.addEventListener('click', () => {
+              SoundFX.click();
+              this.followActive = false;
+              this.updateFollowUI();
+              this.rig.setAttribute('position', '-445 4.5 32');
+              this.rig.setAttribute('rotation', '0 25 0');
+            });
+          }
+
+          if (btnCamCentro) {
+            btnCamCentro.addEventListener('click', () => {
+              SoundFX.click();
+              this.followActive = false;
+              this.updateFollowUI();
+              this.rig.setAttribute('position', '0 4 38');
+              this.rig.setAttribute('rotation', '0 0 0');
+            });
+          }
+
+          if (btnCamAlta) {
+            btnCamAlta.addEventListener('click', () => {
+              SoundFX.click();
+              this.followActive = false;
+              this.updateFollowUI();
+              this.rig.setAttribute('position', '0 60 120');
+              this.rig.setAttribute('rotation', '-22 0 0');
+            });
+          }
+
+          // 6. Alternar Iluminacion
+          const btnLight = document.querySelector('#btn-light');
+          const txtLight = document.querySelector('#txt-light');
+          const sky = document.querySelector('#sky');
+          const sun = document.querySelector('#sun-light');
+          const ambient = document.querySelector('#ambient-light');
+          let lightMode = 0;
+
+          if (btnLight) {
+            btnLight.addEventListener('click', () => {
+              SoundFX.click();
+              lightMode = (lightMode + 1) % 3;
+              if (lightMode === 0) {
+                sky.setAttribute('color', '#60a5fa');
+                sun.setAttribute('light', 'intensity: 1.2; color: #ffffff');
+                ambient.setAttribute('light', 'intensity: 0.8; color: #ffffff');
+                txtLight.setAttribute('value', 'Iluminacion: Dia');
+              } else if (lightMode === 1) {
+                sky.setAttribute('color', '#fb923c');
+                sun.setAttribute('light', 'intensity: 0.9; color: #ffedd5');
+                ambient.setAttribute('light', 'intensity: 0.6; color: #fdba74');
+                txtLight.setAttribute('value', 'Iluminacion: Tarde');
+              } else {
+                sky.setAttribute('color', '#090d16');
+                sun.setAttribute('light', 'intensity: 0.2; color: #60a5fa');
+                ambient.setAttribute('light', 'intensity: 0.3; color: #3b82f6');
+                txtLight.setAttribute('value', 'Iluminacion: Noche');
+              }
+            });
+          }
+
+          // 7. Minimizar / Restaurar Menu
+          const btnClose = document.querySelector('#btn-close-menu');
+          if (btnClose) {
+            btnClose.addEventListener('click', () => {
+              SoundFX.click();
+              this.menuPanel.setAttribute('visible', 'false');
+              this.miniButton.setAttribute('visible', 'true');
+            });
+          }
+
+          if (this.miniButton) {
+            this.miniButton.addEventListener('click', () => {
+              SoundFX.click();
+              this.menuPanel.setAttribute('visible', 'true');
+              this.miniButton.setAttribute('visible', 'false');
+            });
+          }
+        },
+
+        initCardboardButton: function () {
+          const btn = document.querySelector('#cardboard-btn');
+          const scene = this.scene;
+          if (!btn || !scene) return;
+
+          let inVR = false;
+
+          const toggleVR = (e) => {
+            if (e && e.cancelable) {
+              e.preventDefault();
+            }
+            try { SoundFX.click(); } catch(err) {}
+            inVR = !inVR;
+
+            if (inVR) {
+              // 1. Activar pantalla completa
+              try {
+                const el = document.documentElement;
+                const rfs = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+                if (rfs) rfs.call(el);
+              } catch(err) {}
+
+              // 2. Intentar bloquear orientacion horizontal en moviles
+              try {
+                if (screen.orientation && screen.orientation.lock) {
+                  screen.orientation.lock('landscape').catch(() => {});
+                }
+              } catch(err) {}
+
+              // 3. Activar pantalla dividida estereoscopica SBS
+              scene.setAttribute('cardboard-stereo', 'enabled', true);
+
+              // 4. Forzar resize tras cambio de fullscreen
+              setTimeout(() => {
+                if (scene.resize) scene.resize();
+                window.dispatchEvent(new Event('resize'));
+              }, 150);
+
+              btn.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+                <span>SALIR DE VR</span>
+              `;
+              btn.style.borderColor = '#ef4444';
+            } else {
+              // Desactivar estereo
+              scene.setAttribute('cardboard-stereo', 'enabled', false);
+
+              try {
+                const efs = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen;
+                if (efs && (document.fullscreenElement || document.webkitFullscreenElement)) {
+                  efs.call(document);
+                }
+              } catch(err) {}
+
+              setTimeout(() => {
+                if (scene.resize) scene.resize();
+                window.dispatchEvent(new Event('resize'));
+              }, 150);
+
+              btn.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4.5l-2-2.5-2 2.5H5a2 2 0 0 1-2-2V7z"/>
+                  <circle cx="8" cy="11.5" r="2.2"/>
+                  <circle cx="16" cy="11.5" r="2.2"/>
+                </svg>
+                <span>MODO VISOR VR</span>
+              `;
+              btn.style.borderColor = '#38bdf8';
+            }
+          };
+
+          btn.addEventListener('click', toggleVR);
+
+          // Si el usuario sale de pantalla completa con la tecla ESC o gesto del sistema
+          const onFSChange = () => {
+            const isFS = !!(document.fullscreenElement || document.webkitFullscreenElement);
+            if (!isFS && inVR) {
+              toggleVR();
+            }
+          };
+          document.addEventListener('fullscreenchange', onFSChange);
+          document.addEventListener('webkitfullscreenchange', onFSChange);
+        },
+
+        initWakeLock: function () {
+          const tryLock = async () => {
+            if ('wakeLock' in navigator) {
+              try {
+                await navigator.wakeLock.request('screen');
+                console.log('WakeLock activado: la pantalla no se suspendera.');
+              } catch(e) {}
+            }
+          };
+          document.addEventListener('click', tryLock, { once: true });
+        },
+
+        getController: function () {
+          return this.bochoEntity.components['car-animator-controller'];
+        },
+
+        updateFollowUI: function () {
+          const btnFollow = document.querySelector('#btn-follow');
+          const txtFollow = document.querySelector('#txt-follow');
+          if (this.followActive) {
+            txtFollow.setAttribute('value', 'Modo Seguimiento: ACTIVO');
+            btnFollow.setAttribute('material', 'color', '#10b981');
+            this.snapToFollowImmediate();
+          } else {
+            txtFollow.setAttribute('value', 'Seguir Auto (Camara Dinamica)');
+            btnFollow.setAttribute('material', 'color', '#0284c7');
+          }
+        },
+
+        // Posicionamiento calibrado segun las dimensiones reales del Bocho
+        getTargetFollowPos: function (carVec) {
+          const carCenterZ = carVec.z - 13.2; // Centro del carro en Z
+          if (this.followModeType === 'chase') {
+            // El carro termina en X = carVec.x - 36. Nos colocamos 16m detras de la defensa trasera.
+            return {
+              x: carVec.x - 52,
+              y: 9.5,
+              z: carCenterZ,
+              rotY: -90 // Mirando de frente hacia el camino y la parte trasera del auto
+            };
+          } else if (this.followModeType === 'side') {
+            // A la mitad del largo del auto, pero a un costado en la banqueta
+            return {
+              x: carVec.x - 16,
+              y: 5.5,
+              z: carCenterZ + 25,
+              rotY: 180 // Mirando hacia el carro de perfil
+            };
+          } else {
+            // Techo / Capo (conduciendo en primera persona sobre el auto)
+            return {
+              x: carVec.x - 12,
+              y: 8.5,
+              z: carCenterZ,
+              rotY: -90
+            };
+          }
+        },
+
+        snapToFollowImmediate: function () {
+          const ctrl = this.getController();
+          if (ctrl && ctrl.getCarWorldPosition(this.tempVec)) {
+            const target = this.getTargetFollowPos(this.tempVec);
+            this.rig.object3D.position.set(target.x, target.y, target.z);
+            this.rig.setAttribute('rotation', '0 ' + target.rotY + ' 0');
+          }
+        },
+
+        // Actualizacion frame a frame para mover la camara y el menu en lockstep con el auto
+        tick: function (t, dt) {
+          if (!this.followActive || !dt) return;
+          const ctrl = this.getController();
+          if (!ctrl || !ctrl.getCarWorldPosition(this.tempVec)) return;
+
+          const target = this.getTargetFollowPos(this.tempVec);
+          const factor = Math.min(1.0, (dt / 1000) * 12); // Interpolacion fluida
+
+          this.rig.object3D.position.x = THREE.MathUtils.lerp(this.rig.object3D.position.x, target.x, factor);
+          this.rig.object3D.position.y = THREE.MathUtils.lerp(this.rig.object3D.position.y, target.y, factor);
+          this.rig.object3D.position.z = THREE.MathUtils.lerp(this.rig.object3D.position.z, target.z, factor);
         }
       });
     </script>
+  </head>
+  <body>
+    <!-- Linea divisoria central para el visor VR -->
+    <div id="vr-center-divider"></div>
+
+    <!-- Aviso de orientacion para smartphones -->
+    <div id="rotate-notice">Gira tu telefono en horizontal para el visor VR</div>
+
+    <!-- Instrucciones de escritorio -->
+    <div id="ui-overlay">
+      <strong>Controles:</strong> Clic y arrastra para mirar en 360 grados / WASD para moverte
+    </div>
+
+    <!-- BOTON OFICIAL GOOGLE CARDBOARD EN LA ESQUINA INFERIOR IZQUIERDA -->
+    <button id="cardboard-btn" title="Iniciar Modo Visor 3D (Google Cardboard / Homido)">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4.5l-2-2.5-2 2.5H5a2 2 0 0 1-2-2V7z"/>
+        <circle cx="8" cy="11.5" r="2.2"/>
+        <circle cx="16" cy="11.5" r="2.2"/>
+      </svg>
+      <span>MODO VISOR VR</span>
+    </button>
+
+    <!-- Escena Principal VR (Con soporte estereo Cardboard garantizado) -->
+    <a-scene
+      vr-mode-ui="enabled: false"
+      device-orientation-permission-ui="enabled: true"
+      cardboard-stereo="enabled: false"
+      vr-menu-controller>
+      
+      <!-- Precarga de Assets -->
+      <a-assets timeout="10000">
+        <a-asset-item id="modelo-bocho" src="AnimacionBochoProyectoFinal.glb"></a-asset-item>
+      </a-assets>
+
+      <!-- Iluminacion del Entorno -->
+      <a-sky id="sky" color="#60a5fa" radius="5000"></a-sky>
+      <a-light id="ambient-light" type="ambient" color="#ffffff" intensity="0.8"></a-light>
+      <a-light id="sun-light" type="directional" position="100 200 100" intensity="1.2" cast-shadow="false"></a-light>
+      <a-light type="hemisphere" groundColor="#334155" color="#94a3b8" intensity="0.6"></a-light>
+
+      <!-- Modelo 3D del Entorno + Animacion del Bocho -->
+      <a-entity
+        id="bocho-model"
+        gltf-model="#modelo-bocho"
+        position="-28078.79 0 0"
+        scale="1 1 1"
+        animation-mixer="clip: *; loop: repeat; timeScale: 1"
+        car-animator-controller="autoplay: true; speed: 1.0">
+      </a-entity>
+
+      <!-- Camara y Rig del Usuario -->
+      <!-- Inicia en (-445, 4.5, 32) mirando hacia donde arranca el Bocho -->
+      <a-entity id="rig" position="-445 4.5 32" rotation="0 25 0">
+        <a-camera id="camera" look-controls="magicWindowTrackingEnabled: true" wasd-controls="acceleration: 60" far="50000" near="0.1">
+          <!-- Cursor con Reticula Interactiva para VR (Soporta gatillo fisico Y temporizador por mirada/gaze fuse) -->
+          <a-cursor
+            id="cursor"
+            raycaster="objects: .clickable"
+            fuse="true"
+            fuse-timeout="1400"
+            color="#38bdf8"
+            position="0 0 -1"
+            geometry="primitive: ring; radiusInner: 0.015; radiusOuter: 0.025"
+            material="shader: flat; opacity: 0.8"
+            animation__fusing="property: scale; startEvents: fusing; dur: 1400; from: 1 1 1; to: 0.2 0.2 0.2"
+            animation__mouseleave="property: scale; startEvents: mouseleave; dur: 150; to: 1 1 1"
+            animation__click="property: scale; startEvents: click; dur: 120; from: 0.1 0.1 0.1; to: 1 1 1">
+          </a-cursor>
+        </a-camera>
+
+        <!-- ============================================== -->
+        <!--              MENU FLOTANTE 3D VR               -->
+        <!-- ============================================== -->
+        <a-entity id="vr-menu" position="0 1.2 -2.2" rotation="-10 0 0">
+          
+          <!-- Boton flotante para reabrir cuando este minimizado -->
+          <a-entity
+            id="menu-minimized-btn"
+            class="clickable"
+            visible="false"
+            position="0 0.9 0"
+            geometry="primitive: circle; radius: 0.2"
+            material="color: #0284c7; shader: flat; opacity: 0.9"
+            menu-button-fx="baseColor: #0284c7; hoverColor: #0369a1">
+            <a-text value="MENU" align="center" position="0 0 0.01" width="1.8" color="#ffffff"></a-text>
+          </a-entity>
+
+          <!-- Panel Principal del Menu -->
+          <a-entity id="menu-panel">
+            <!-- Fondo translucido con borde -->
+            <a-plane
+              width="2.35"
+              height="2.7"
+              color="#0f172a"
+              material="opacity: 0.93; shader: flat; transparent: true">
+            </a-plane>
+            <a-plane
+              position="0 0 -0.005"
+              width="2.39"
+              height="2.74"
+              color="#38bdf8"
+              material="opacity: 0.4; shader: flat; transparent: true">
+            </a-plane>
+
+            <!-- Encabezado -->
+            <a-text
+              value="CONTROL DE ESCENARIO"
+              align="center"
+              position="0 1.12 0.02"
+              width="3"
+              color="#38bdf8">
+            </a-text>
+            <a-text
+              value="Proyecto Final - Bocho VR"
+              align="center"
+              position="0 0.98 0.02"
+              width="1.8"
+              color="#94a3b8">
+            </a-text>
+
+            <!-- SECCION: MODO SEGUIMIENTO DE CAMARA -->
+            <!-- Boton Activar/Desactivar Seguimiento -->
+            <a-entity
+              id="btn-follow"
+              class="clickable"
+              position="0 0.73 0.02"
+              geometry="primitive: plane; width: 2.1; height: 0.25"
+              material="color: #0284c7; shader: flat"
+              menu-button-fx="baseColor: #0284c7; hoverColor: #0369a1">
+              <a-text
+                id="txt-follow"
+                value="Seguir Auto (Camara Dinamica)"
+                align="center"
+                position="0 0 0.01"
+                width="2.3"
+                color="#ffffff">
+              </a-text>
+            </a-entity>
+
+            <!-- Boton Cambiar Tipo de Camara de Seguimiento -->
+            <a-entity
+              id="btn-follow-type"
+              class="clickable"
+              position="0 0.44 0.02"
+              geometry="primitive: plane; width: 2.1; height: 0.21"
+              material="color: #1e293b; shader: flat"
+              menu-button-fx="baseColor: #1e293b; hoverColor: #334155">
+              <a-text
+                id="txt-follow-type"
+                value="Camara: Persecucion (Atras)"
+                align="center"
+                position="0 0 0.01"
+                width="2.1"
+                color="#38bdf8">
+              </a-text>
+            </a-entity>
+
+            <!-- SECCION: CONTROL DEL AUTO -->
+            <!-- Boton Play / Pause -->
+            <a-entity
+              id="btn-play-pause"
+              class="clickable"
+              position="0 0.16 0.02"
+              geometry="primitive: plane; width: 2.1; height: 0.23"
+              material="color: #3b82f6; shader: flat"
+              menu-button-fx="baseColor: #3b82f6; hoverColor: #2563eb">
+              <a-text
+                id="txt-play-pause"
+                value="Pausar Auto"
+                align="center"
+                position="0 0 0.01"
+                width="2.3"
+                color="#ffffff">
+              </a-text>
+            </a-entity>
+
+            <!-- Boton Velocidad y Boton Reiniciar -->
+            <a-entity
+              id="btn-speed"
+              class="clickable"
+              position="-0.55 -0.10 0.02"
+              geometry="primitive: plane; width: 1.0; height: 0.19"
+              material="color: #1e293b; shader: flat"
+              menu-button-fx="baseColor: #1e293b; hoverColor: #334155">
+              <a-text
+                id="txt-speed"
+                value="Velocidad: 1.0x"
+                align="center"
+                position="0 0 0.01"
+                width="2.0"
+                color="#38bdf8">
+              </a-text>
+            </a-entity>
+
+            <a-entity
+              id="btn-restart"
+              class="clickable"
+              position="0.55 -0.10 0.02"
+              geometry="primitive: plane; width: 1.0; height: 0.19"
+              material="color: #1e293b; shader: flat"
+              menu-button-fx="baseColor: #1e293b; hoverColor: #334155">
+              <a-text
+                value="Reiniciar Ruta"
+                align="center"
+                position="0 0 0.01"
+                width="2.0"
+                color="#10b981">
+              </a-text>
+            </a-entity>
+
+            <!-- Separador: Puntos de vista fijos -->
+            <a-text
+              value="- PUNTOS DE VISTA FIJOS -"
+              align="center"
+              position="0 -0.27 0.02"
+              width="1.6"
+              color="#64748b">
+            </a-text>
+
+            <a-entity
+              id="btn-cam-origen"
+              class="clickable"
+              position="-0.70 -0.42 0.02"
+              geometry="primitive: plane; width: 0.65; height: 0.19"
+              material="color: #1e293b; shader: flat"
+              menu-button-fx="baseColor: #1e293b; hoverColor: #334155">
+              <a-text value="Salida" align="center" position="0 0 0.01" width="1.9" color="#f8fafc"></a-text>
+            </a-entity>
+
+            <a-entity
+              id="btn-cam-centro"
+              class="clickable"
+              position="0 -0.42 0.02"
+              geometry="primitive: plane; width: 0.65; height: 0.19"
+              material="color: #1e293b; shader: flat"
+              menu-button-fx="baseColor: #1e293b; hoverColor: #334155">
+              <a-text value="Acera" align="center" position="0 0 0.01" width="1.9" color="#f8fafc"></a-text>
+            </a-entity>
+
+            <a-entity
+              id="btn-cam-alta"
+              class="clickable"
+              position="0.70 -0.42 0.02"
+              geometry="primitive: plane; width: 0.65; height: 0.19"
+              material="color: #1e293b; shader: flat"
+              menu-button-fx="baseColor: #1e293b; hoverColor: #334155">
+              <a-text value="Aerea" align="center" position="0 0 0.01" width="1.9" color="#f8fafc"></a-text>
+            </a-entity>
+
+            <!-- Control de Iluminacion -->
+            <a-entity
+              id="btn-light"
+              class="clickable"
+              position="0 -0.68 0.02"
+              geometry="primitive: plane; width: 2.1; height: 0.22"
+              material="color: #1e293b; shader: flat"
+              menu-button-fx="baseColor: #1e293b; hoverColor: #334155">
+              <a-text
+                id="txt-light"
+                value="Iluminacion: Dia"
+                align="center"
+                position="0 0 0.01"
+                width="2.1"
+                color="#fbbf24">
+              </a-text>
+            </a-entity>
+
+            <!-- Boton Ocultar Menu -->
+            <a-entity
+              id="btn-close-menu"
+              class="clickable"
+              position="0 -0.99 0.02"
+              geometry="primitive: plane; width: 2.1; height: 0.22"
+              material="color: #ef4444; shader: flat"
+              menu-button-fx="baseColor: #ef4444; hoverColor: #dc2626">
+              <a-text
+                value="Ocultar Menu (Modo Inmersivo)"
+                align="center"
+                position="0 0 0.01"
+                width="2.2"
+                color="#ffffff">
+              </a-text>
+            </a-entity>
+          </a-entity>
+        </a-entity>
+      </a-entity>
+    </a-scene>
   </body>
 </html>
