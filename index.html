@@ -9,7 +9,19 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <title>VR Interactive - Escenario Bocho (Homido & Cardboard Stereo)</title>
 
-    <!-- A-Frame Library (v1.5.0) - Incluye soporte nativo y polyfills para WebVR/WebXR -->
+    <!-- WebXR Polyfill: Habilita la deteccion automatica de Cardboard y el boton nativo VR en iPhone / iOS Safari -->
+    <script src="https://cdn.jsdelivr.net/npm/webxr-polyfill@latest/build/webxr-polyfill.min.js"></script>
+    <script>
+      // Se activa exclusivamente en navegadores sin WebXR nativo (como Safari en iPhone)
+      if (!navigator.xr && window.WebXRPolyfill) {
+        window.webxrPolyfill = new WebXRPolyfill({
+          cardboardMode: true
+        });
+        console.log('WebXR Polyfill activado para Cardboard en iOS');
+      }
+    </script>
+
+    <!-- A-Frame Library (v1.5.0) -->
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <!-- A-Frame Extras para soporte oficial de AnimationMixer -->
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.5.0/dist/aframe-extras.min.js"></script>
@@ -232,30 +244,27 @@
             }
 
             try {
-              // Obtener dimensiones LOGICAS del renderer (NO canvas.width fisico, para evitar multiplicar dos veces por DPR en moviles)
+              // Obtener dimensiones LOGICAS del renderer (NO canvas.width fisico)
               renderer.getSize(sizeVec);
               const w = sizeVec.x;
               const h = sizeVec.y;
 
-              // Validar que las dimensiones sean positivas durante giros de pantalla
               if (w <= 0 || h <= 0) {
                 return originalRender(threeScene, camera);
               }
 
-              // Sincronizar planos de recorte (near y far) para abarcar todo el modelo a 28,000m
+              // Sincronizar planos de recorte (near y far)
               stereoCam.cameraL.near = camera.near || 0.1;
               stereoCam.cameraL.far = camera.far || 50000;
               stereoCam.cameraR.near = camera.near || 0.1;
               stereoCam.cameraR.far = camera.far || 50000;
 
-              // En Three.js StereoCamera, aspect es un factor multiplicador (0.5 = mitad horizontal)
               stereoCam.aspect = 0.5;
               stereoCam.eyeSep = self.data.eyeSep;
 
               camera.updateMatrixWorld();
               stereoCam.update(camera);
 
-              // Evitar que Three.js resetee las matrices al origen (0, 0, 0)
               stereoCam.cameraL.matrixWorldNeedsUpdate = false;
               stereoCam.cameraR.matrixWorldNeedsUpdate = false;
 
@@ -264,19 +273,18 @@
               renderer.autoClear = false;
               renderer.clear();
 
-              // 1. OJO IZQUIERDO (Mitad izquierda de la pantalla en coords logicas)
+              // 1. OJO IZQUIERDO (Mitad izquierda)
               renderer.setViewport(0, 0, halfW, h);
               renderer.setScissor(0, 0, halfW, h);
               renderer.setScissorTest(true);
               originalRender(threeScene, stereoCam.cameraL);
 
-              // 2. OJO DERECHO (Mitad derecha de la pantalla en coords logicas)
+              // 2. OJO DERECHO (Mitad derecha)
               renderer.setViewport(halfW, 0, w - halfW, h);
               renderer.setScissor(halfW, 0, w - halfW, h);
               renderer.setScissorTest(true);
               originalRender(threeScene, stereoCam.cameraR);
 
-              // Restaurar estado limpio del renderer
               renderer.setScissorTest(false);
               renderer.setViewport(0, 0, w, h);
               renderer.autoClear = true;
@@ -606,50 +614,8 @@
 
           let inVR = false;
 
-          const toggleVR = (e) => {
-            if (e && e.cancelable) {
-              e.preventDefault();
-            }
-            try { SoundFX.click(); } catch(err) {}
-
-            // Permiso obligatorio de Giroscopio en iOS Safari (iPhone / iPad)
-            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-              DeviceOrientationEvent.requestPermission().then(state => {
-                if (state === 'granted') {
-                  console.log('Permiso de giroscopio concedido en iOS');
-                }
-              }).catch(() => {});
-            }
-            if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
-              DeviceMotionEvent.requestPermission().catch(() => {});
-            }
-
-            inVR = !inVR;
-
+          const updateBtnUI = () => {
             if (inVR) {
-              // 1. Activar pantalla completa (funciona en Android y navegadores de escritorio)
-              try {
-                const el = document.documentElement;
-                const rfs = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
-                if (rfs) rfs.call(el);
-              } catch(err) {}
-
-              // 2. Intentar bloquear orientacion horizontal en moviles
-              try {
-                if (screen.orientation && screen.orientation.lock) {
-                  screen.orientation.lock('landscape').catch(() => {});
-                }
-              } catch(err) {}
-
-              // 3. Activar pantalla dividida estereoscopica SBS
-              scene.setAttribute('cardboard-stereo', 'enabled', true);
-
-              // 4. Forzar resize tras cambio de fullscreen
-              setTimeout(() => {
-                if (scene.resize) scene.resize();
-                window.dispatchEvent(new Event('resize'));
-              }, 150);
-
               btn.innerHTML = `
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -659,21 +625,6 @@
               `;
               btn.style.borderColor = '#ef4444';
             } else {
-              // Desactivar estereo
-              scene.setAttribute('cardboard-stereo', 'enabled', false);
-
-              try {
-                const efs = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen;
-                if (efs && (document.fullscreenElement || document.webkitFullscreenElement)) {
-                  efs.call(document);
-                }
-              } catch(err) {}
-
-              setTimeout(() => {
-                if (scene.resize) scene.resize();
-                window.dispatchEvent(new Event('resize'));
-              }, 150);
-
               btn.innerHTML = `
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4.5l-2-2.5-2 2.5H5a2 2 0 0 1-2-2V7z"/>
@@ -686,20 +637,99 @@
             }
           };
 
+          const enterVRMode = () => {
+            inVR = true;
+            updateBtnUI();
+
+            // 1. Activar pantalla completa si el navegador lo permite
+            try {
+              const el = document.documentElement;
+              const rfs = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+              if (rfs) rfs.call(el);
+            } catch(err) {}
+
+            // 2. Intentar bloquear orientacion horizontal en moviles
+            try {
+              if (screen.orientation && screen.orientation.lock) {
+                screen.orientation.lock('landscape').catch(() => {});
+              }
+            } catch(err) {}
+
+            // 3. Activar renderizado estereoscopico SBS
+            scene.setAttribute('cardboard-stereo', 'enabled', true);
+
+            // 4. Intentar tambien enterVR de A-Frame (para WebXR nativo o polyfilled)
+            if (scene.enterVR && !scene.is('vr-mode')) {
+              scene.enterVR().catch(() => {});
+            }
+
+            // 5. Forzar redimensionamiento adaptativo
+            setTimeout(() => {
+              if (scene.resize) scene.resize();
+              window.dispatchEvent(new Event('resize'));
+            }, 200);
+          };
+
+          const exitVRMode = () => {
+            inVR = false;
+            updateBtnUI();
+
+            scene.setAttribute('cardboard-stereo', 'enabled', false);
+
+            if (scene.exitVR && scene.is('vr-mode')) {
+              scene.exitVR().catch(() => {});
+            }
+
+            try {
+              const efs = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen;
+              if (efs && (document.fullscreenElement || document.webkitFullscreenElement)) {
+                efs.call(document);
+              }
+            } catch(err) {}
+
+            setTimeout(() => {
+              if (scene.resize) scene.resize();
+              window.dispatchEvent(new Event('resize'));
+            }, 200);
+          };
+
+          const toggleVR = (e) => {
+            if (e && e.cancelable) e.preventDefault();
+            try { SoundFX.click(); } catch(err) {}
+
+            // Pedir permisos de giroscopio en iOS Safari si es necesario
+            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+              DeviceOrientationEvent.requestPermission().then(state => {
+                if (state === 'granted') {
+                  console.log('Permiso giroscopio concedido en iOS');
+                }
+              }).catch(() => {});
+            }
+
+            if (!inVR) {
+              enterVRMode();
+            } else {
+              exitVRMode();
+            }
+          };
+
           btn.addEventListener('click', toggleVR);
           btn.addEventListener('touchend', (e) => {
             toggleVR(e);
           }, { passive: false });
 
-          // Si el usuario sale de pantalla completa con la tecla ESC o gesto del sistema
-          const onFSChange = () => {
-            const isFS = !!(document.fullscreenElement || document.webkitFullscreenElement);
-            if (!isFS && inVR) {
-              toggleVR();
-            }
-          };
-          document.addEventListener('fullscreenchange', onFSChange);
-          document.addEventListener('webkitfullscreenchange', onFSChange);
+          // Sincronizar estado cuando se use el boton nativo de A-Frame (en la esquina inferior derecha)
+          scene.addEventListener('enter-vr', () => {
+            inVR = true;
+            updateBtnUI();
+            scene.setAttribute('cardboard-stereo', 'enabled', true);
+          });
+
+          scene.addEventListener('exit-vr', () => {
+            inVR = false;
+            updateBtnUI();
+            scene.setAttribute('cardboard-stereo', 'enabled', false);
+          });
         },
 
         initWakeLock: function () {
@@ -710,7 +740,6 @@
                 console.log('WakeLock activado: la pantalla no se suspendera.');
               } catch(e) {}
             }
-            // En iOS, pedir permiso de orientacion al primer toque del usuario
             if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
               DeviceOrientationEvent.requestPermission().catch(() => {});
             }
@@ -803,7 +832,7 @@
       <strong>Controles:</strong> Clic y arrastra para mirar en 360 grados / WASD para moverte
     </div>
 
-    <!-- BOTON OFICIAL GOOGLE CARDBOARD EN LA ESQUINA INFERIOR IZQUIERDA -->
+    <!-- BOTON PERSONALIZADO GOOGLE CARDBOARD EN LA ESQUINA INFERIOR IZQUIERDA -->
     <button id="cardboard-btn" title="Iniciar Modo Visor 3D (Google Cardboard / Homido)">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4.5l-2-2.5-2 2.5H5a2 2 0 0 1-2-2V7z"/>
@@ -813,9 +842,9 @@
       <span>MODO VISOR VR</span>
     </button>
 
-    <!-- Escena Principal VR (Con soporte estereo Cardboard garantizado) -->
+    <!-- Escena Principal VR (Con soporte nativo A-Frame + Cardboard habilitado en ambas plataformas) -->
     <a-scene
-      vr-mode-ui="enabled: false"
+      vr-mode-ui="enabled: true; cardboardModeEnabled: true"
       device-orientation-permission-ui="enabled: true"
       cardboard-stereo="enabled: false"
       vr-menu-controller>
