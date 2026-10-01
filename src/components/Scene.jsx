@@ -6,20 +6,28 @@ import { FollowCamera } from './FollowCamera.jsx';
 import { StereoVRManager } from './StereoVRManager.jsx';
 import { VRDeviceOrientation } from './VRDeviceOrientation.jsx';
 import { WebXRManager } from './WebXRManager.jsx';
+import { VRMenu3D } from './VRMenu3D.jsx';
 
 export function Scene({
   isPlaying,
+  setIsPlaying,
   speed,
+  setSpeed,
   followActive,
+  setFollowActive,
   followType,
+  setFollowType,
   fixedView,
+  setFixedView,
   lightMode,
+  setLightMode,
   vrMode,
   setVrMode,
   carObj,
   setCarObj,
   onRecenterRef,
-  onWebXRTriggerRef
+  onWebXRTriggerRef,
+  onRestart
 }) {
   const orbitRef = useRef();
 
@@ -94,6 +102,25 @@ export function Scene({
 
       {/* Gestor Nativo WebXR con boton oficial y soporte Cardboard */}
       <WebXRManager onSessionChange={setVrMode} onTriggerRef={onWebXRTriggerRef} />
+
+      {/* MENU ESPACIAL 3D CON MIRA/RETICULA INTERACTIVA EN VR */}
+      {vrMode && (
+        <VRMenu3D
+          isPlaying={isPlaying}
+          setIsPlaying={setIsPlaying}
+          speed={speed}
+          setSpeed={setSpeed}
+          followActive={followActive}
+          setFollowActive={setFollowActive}
+          followType={followType}
+          setFollowType={setFollowType}
+          fixedView={fixedView}
+          setFixedView={setFixedView}
+          lightMode={lightMode}
+          setLightMode={setLightMode}
+          onRestart={onRestart}
+        />
+      )}
 
       {/* Giroscopio y Estereo de respaldo (cuando no hay sesion nativa WebXR activa) */}
       {vrMode && !navigator.xr && (

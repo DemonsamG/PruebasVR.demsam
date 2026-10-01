@@ -66,20 +66,27 @@ export default function App() {
       {/* Lienzo 3D con React Three Fiber */}
       <Scene
         isPlaying={isPlaying}
+        setIsPlaying={setIsPlaying}
         speed={speed}
+        setSpeed={setSpeed}
         followActive={followActive}
+        setFollowActive={setFollowActive}
         followType={followType}
+        setFollowType={setFollowType}
         fixedView={fixedView}
+        setFixedView={setFixedView}
         lightMode={lightMode}
+        setLightMode={setLightMode}
         vrMode={vrMode}
         setVrMode={setVrMode}
         carObj={carObj}
         setCarObj={setCarObj}
         onRecenterRef={onRecenterRef}
         onWebXRTriggerRef={onWebXRTriggerRef}
+        onRestart={handleRestart}
       />
 
-      {/* Interfaz de Usuario Moderna y Controles Espaciales */}
+      {/* Interfaz de Usuario 2D (Modo Pantalla Normal) */}
       <UIOverlay
         isPlaying={isPlaying}
         setIsPlaying={setIsPlaying}
