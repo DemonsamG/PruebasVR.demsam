@@ -6,10 +6,8 @@ export function StereoVRManager({ enabled, eyeSep = 0.064 }) {
   const { gl } = useThree();
   const stereoCam = useMemo(() => {
     const s = new THREE.StereoCamera();
-    s.aspect = 0.5; // Factor 0.5: cada ojo ocupa la mitad exacta del FOV horizontal
+    s.aspect = 0.5; // Factor 0.5: cada ojo ocupa la mitad exacta del ancho de pantalla
     s.eyeSep = eyeSep;
-    s.cameraL.matrixWorldAutoUpdate = false;
-    s.cameraR.matrixWorldAutoUpdate = false;
     s.cameraL.matrixAutoUpdate = false;
     s.cameraR.matrixAutoUpdate = false;
     return s;
@@ -17,11 +15,11 @@ export function StereoVRManager({ enabled, eyeSep = 0.064 }) {
 
   const sizeVec = useRef(new THREE.Vector2());
 
-  // Prioridad 1 para tomar el control del renderizado cuando el visor VR esta activo
+  // Prioridad 1 para tomar el control del renderizado dual en VR
   useFrame(({ scene, camera }) => {
     if (!enabled) return;
 
-    // Coordenadas logicas exactas (evita el bug de DPR en pantallas Retina / AMOLED)
+    // Coordenadas logicas exactas (evita bug de DPR en pantallas Retina / AMOLED)
     gl.getSize(sizeVec.current);
     const w = sizeVec.current.x;
     const h = sizeVec.current.y;
@@ -37,8 +35,9 @@ export function StereoVRManager({ enabled, eyeSep = 0.064 }) {
     camera.updateMatrixWorld();
     stereoCam.update(camera);
 
-    stereoCam.cameraL.matrixWorldNeedsUpdate = false;
-    stereoCam.cameraR.matrixWorldNeedsUpdate = false;
+    // CRUCIAL: Actualizar las matrices inversas de vista para ambos ojos
+    stereoCam.cameraL.matrixWorldInverse.copy(stereoCam.cameraL.matrixWorld).invert();
+    stereoCam.cameraR.matrixWorldInverse.copy(stereoCam.cameraR.matrixWorld).invert();
 
     const halfW = Math.floor(w / 2);
 
@@ -57,7 +56,7 @@ export function StereoVRManager({ enabled, eyeSep = 0.064 }) {
     gl.setScissorTest(true);
     gl.render(scene, stereoCam.cameraR);
 
-    // Restaurar estado limpio
+    // Restaurar estado limpio para el pipeline de Three.js
     gl.setScissorTest(false);
     gl.setViewport(0, 0, w, h);
     gl.autoClear = true;

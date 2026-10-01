@@ -4,8 +4,8 @@ import * as THREE from 'three';
 
 export function BochoModel({ isPlaying = true, speed = 1.0, onCarRef }) {
   const group = useRef();
-  // Carga del modelo optimizado de 8.84 MB con decodificador Draco local
-  const { scene, animations } = useGLTF('./bocho_optimized.glb', './draco/');
+  // Carga del modelo optimizado de 8.84 MB con Draco
+  const { scene, animations } = useGLTF('./bocho_optimized.glb', true);
   const { actions } = useAnimations(animations, group);
 
   useEffect(() => {
@@ -42,4 +42,4 @@ export function BochoModel({ isPlaying = true, speed = 1.0, onCarRef }) {
   return <primitive ref={group} object={scene} dispose={null} />;
 }
 
-useGLTF.preload('./bocho_optimized.glb', './draco/');
+useGLTF.preload('./bocho_optimized.glb', true);
