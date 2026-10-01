@@ -1,4 +1,4 @@
-﻿import React, { useState, useCallback } from 'react';
+﻿import React, { useState, useCallback, useRef } from 'react';
 import { Scene } from './components/Scene.jsx';
 import { UIOverlay } from './components/UIOverlay.jsx';
 
@@ -11,6 +11,7 @@ export default function App() {
   const [lightMode, setLightMode] = useState('day'); // 'day' | 'sunset' | 'night'
   const [vrMode, setVrMode] = useState(false);
   const [carObj, setCarObj] = useState(null);
+  const onRecenterRef = useRef(null);
 
   const handleRestart = useCallback(() => {
     if (!followActive) {
@@ -19,9 +20,15 @@ export default function App() {
   }, [followActive]);
 
   const toggleVRMode = useCallback(() => {
-    // Permisos de sensores en iOS Safari si es necesario
+    // Permisos de sensores en iOS Safari (debe ejecutarse inmediatamente en el gesto del usuario)
     if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-      DeviceOrientationEvent.requestPermission().catch(() => {});
+      DeviceOrientationEvent.requestPermission()
+        .then((res) => {
+          console.log('Permiso de orientacion:', res);
+        })
+        .catch((err) => {
+          console.error('Error solicitando permisos de orientacion:', err);
+        });
     }
 
     setVrMode((prev) => {
@@ -65,6 +72,7 @@ export default function App() {
         vrMode={vrMode}
         carObj={carObj}
         setCarObj={setCarObj}
+        onRecenterRef={onRecenterRef}
       />
 
       {/* Interfaz de Usuario Moderna y Controles Espaciales */}
@@ -84,6 +92,7 @@ export default function App() {
         vrMode={vrMode}
         toggleVRMode={toggleVRMode}
         onRestart={handleRestart}
+        onRecenter={() => onRecenterRef.current?.()}
       />
     </div>
   );

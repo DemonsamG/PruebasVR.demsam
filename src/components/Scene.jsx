@@ -4,6 +4,7 @@ import { OrbitControls, Sky, PerspectiveCamera } from '@react-three/drei';
 import { BochoModel } from './BochoModel.jsx';
 import { FollowCamera } from './FollowCamera.jsx';
 import { StereoVRManager } from './StereoVRManager.jsx';
+import { VRDeviceOrientation } from './VRDeviceOrientation.jsx';
 
 export function Scene({
   isPlaying,
@@ -14,7 +15,8 @@ export function Scene({
   lightMode,
   vrMode,
   carObj,
-  setCarObj
+  setCarObj,
+  onRecenterRef
 }) {
   const orbitRef = useRef();
 
@@ -74,16 +76,25 @@ export function Scene({
         followType={followType}
         fixedView={fixedView}
         orbitControlsRef={orbitRef}
+        vrMode={vrMode}
       />
 
-      {/* Controles orbitales cuando el seguimiento no esta activo */}
+      {/* Controles orbitales: DESACTIVADOS en modo VR para permitir el giroscopio */}
       <OrbitControls
         ref={orbitRef}
-        enabled={!followActive}
+        enabled={!followActive && !vrMode}
         enableDamping
         dampingFactor={0.05}
         maxDistance={5000}
         minDistance={1}
+      />
+
+      {/* Control del Giroscopio para Realidad Virtual con visores */}
+      <VRDeviceOrientation
+        enabled={vrMode}
+        onRecenterRef={onRecenterRef}
+        carObj={carObj}
+        followActive={followActive}
       />
 
       {/* Gestor Estereoscopico VR (Cardboard / Homido SBS) */}

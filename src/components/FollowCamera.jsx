@@ -7,16 +7,17 @@ export function FollowCamera({
   followActive,
   followType, // 'chase' | 'side' | 'roof'
   fixedView, // 'origin' | 'center' | 'aerial' | null
-  orbitControlsRef
+  orbitControlsRef,
+  vrMode = false
 }) {
   const { camera } = useThree();
   const tempVec = useRef(new THREE.Vector3());
   const targetCamPos = useRef(new THREE.Vector3());
   const lookTarget = useRef(new THREE.Vector3());
 
-  // Manejo de vistas fijas cuando no esta en seguimiento
+  // Manejo de vistas fijas cuando no esta en seguimiento ni en VR
   useEffect(() => {
-    if (followActive || !fixedView) return;
+    if (followActive || !fixedView || vrMode) return;
 
     if (fixedView === 'origin') {
       camera.position.set(-445, 4.5, 32);
@@ -40,7 +41,7 @@ export function FollowCamera({
         orbitControlsRef.current.update();
       }
     }
-  }, [fixedView, followActive, camera, orbitControlsRef]);
+  }, [fixedView, followActive, vrMode, camera, orbitControlsRef]);
 
   // Actualizacion frame a frame del modo seguimiento
   useFrame((state, delta) => {
@@ -64,14 +65,18 @@ export function FollowCamera({
       lookTarget.current.set(carPos.x + 30, 4.0, carCenterZ);
     }
 
-    // Interpolacion fluida (lerp)
+    // Interpolacion fluida de la posicion
     const factor = Math.min(1.0, delta * 12);
     camera.position.lerp(targetCamPos.current, factor);
-    camera.lookAt(lookTarget.current);
 
-    if (orbitControlsRef?.current) {
-      orbitControlsRef.current.target.lerp(lookTarget.current, factor);
-      orbitControlsRef.current.update();
+    // En modo VR, el giroscopio orienta la cabeza libremente. NO forzar lookAt
+    if (!vrMode) {
+      camera.lookAt(lookTarget.current);
+
+      if (orbitControlsRef?.current) {
+        orbitControlsRef.current.target.lerp(lookTarget.current, factor);
+        orbitControlsRef.current.update();
+      }
     }
   });
 
