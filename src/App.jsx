@@ -19,41 +19,36 @@ export default function App() {
     }
   }, [followActive]);
 
-  const toggleVRMode = useCallback(() => {
-    // Permisos de sensores en iOS Safari (debe ejecutarse inmediatamente en el gesto del usuario)
+  const toggleVRMode = useCallback(async () => {
+    // 1. Permisos de sensores de movimiento en iOS Safari (debe ejecutarse en el gesto de usuario)
     if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-      DeviceOrientationEvent.requestPermission()
-        .then((res) => {
-          console.log('Permiso de orientacion:', res);
-        })
-        .catch((err) => {
-          console.error('Error solicitando permisos de orientacion:', err);
-        });
+      try {
+        await DeviceOrientationEvent.requestPermission();
+      } catch (err) {
+        console.warn('Permisos de sensor:', err);
+      }
     }
 
     setVrMode((prev) => {
       const next = !prev;
       if (next) {
-        // Pantalla completa
-        try {
-          const el = document.documentElement;
-          const rfs = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
-          if (rfs) rfs.call(el);
-        } catch (e) {}
-
-        // Intentar bloquear en horizontal en telefonos
-        try {
-          if (screen.orientation && screen.orientation.lock) {
-            screen.orientation.lock('landscape').catch(() => {});
-          }
-        } catch (e) {}
+        // Entrar a pantalla completa de forma segura
+        const el = document.documentElement;
+        const rfs = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+        if (rfs) {
+          Promise.resolve(rfs.call(el))
+            .then(() => {
+              if (window.screen?.orientation && window.screen.orientation.lock) {
+                return window.screen.orientation.lock('landscape').catch(() => {});
+              }
+            })
+            .catch(() => {});
+        }
       } else {
-        try {
-          const efs = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen;
-          if (efs && (document.fullscreenElement || document.webkitFullscreenElement)) {
-            efs.call(document);
-          }
-        } catch (e) {}
+        const efs = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen;
+        if (efs && (document.fullscreenElement || document.webkitFullscreenElement)) {
+          efs.call(document);
+        }
       }
       return next;
     });

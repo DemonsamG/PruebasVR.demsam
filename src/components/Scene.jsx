@@ -89,16 +89,17 @@ export function Scene({
         minDistance={1}
       />
 
-      {/* Control del Giroscopio para Realidad Virtual con visores */}
-      <VRDeviceOrientation
-        enabled={vrMode}
-        onRecenterRef={onRecenterRef}
-        carObj={carObj}
-        followActive={followActive}
-      />
+      {/* Control del Giroscopio montado solo cuando VR esta activo */}
+      {vrMode && (
+        <VRDeviceOrientation
+          onRecenterRef={onRecenterRef}
+          carObj={carObj}
+          followActive={followActive}
+        />
+      )}
 
-      {/* Gestor Estereoscopico VR (Cardboard / Homido SBS) */}
-      <StereoVRManager enabled={vrMode} eyeSep={0.064} />
+      {/* Gestor Estereoscopico VR montado solo cuando VR esta activo */}
+      {vrMode && <StereoVRManager eyeSep={0.064} />}
     </Canvas>
   );
 }
