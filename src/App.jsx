@@ -12,6 +12,7 @@ export default function App() {
   const [vrMode, setVrMode] = useState(false);
   const [carObj, setCarObj] = useState(null);
   const onRecenterRef = useRef(null);
+  const onWebXRTriggerRef = useRef(null);
 
   const handleRestart = useCallback(() => {
     if (!followActive) {
@@ -20,7 +21,13 @@ export default function App() {
   }, [followActive]);
 
   const toggleVRMode = useCallback(async () => {
-    // 1. Permisos de sensores de movimiento en iOS Safari (debe ejecutarse en el gesto de usuario)
+    // 1. Si el gestor oficial WebXR esta listo, lanzar la sesion nativa
+    if (onWebXRTriggerRef.current) {
+      onWebXRTriggerRef.current();
+      return;
+    }
+
+    // 2. Solicitar permisos de giroscopio en iOS si aplica
     if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
       try {
         await DeviceOrientationEvent.requestPermission();
@@ -29,10 +36,10 @@ export default function App() {
       }
     }
 
+    // 3. Modo visor manual de respaldo
     setVrMode((prev) => {
       const next = !prev;
       if (next) {
-        // Entrar a pantalla completa de forma segura
         const el = document.documentElement;
         const rfs = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
         if (rfs) {
@@ -65,9 +72,11 @@ export default function App() {
         fixedView={fixedView}
         lightMode={lightMode}
         vrMode={vrMode}
+        setVrMode={setVrMode}
         carObj={carObj}
         setCarObj={setCarObj}
         onRecenterRef={onRecenterRef}
+        onWebXRTriggerRef={onWebXRTriggerRef}
       />
 
       {/* Interfaz de Usuario Moderna y Controles Espaciales */}

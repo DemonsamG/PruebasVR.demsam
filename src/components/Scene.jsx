@@ -5,6 +5,7 @@ import { BochoModel } from './BochoModel.jsx';
 import { FollowCamera } from './FollowCamera.jsx';
 import { StereoVRManager } from './StereoVRManager.jsx';
 import { VRDeviceOrientation } from './VRDeviceOrientation.jsx';
+import { WebXRManager } from './WebXRManager.jsx';
 
 export function Scene({
   isPlaying,
@@ -14,9 +15,11 @@ export function Scene({
   fixedView,
   lightMode,
   vrMode,
+  setVrMode,
   carObj,
   setCarObj,
-  onRecenterRef
+  onRecenterRef,
+  onWebXRTriggerRef
 }) {
   const orbitRef = useRef();
 
@@ -79,7 +82,7 @@ export function Scene({
         vrMode={vrMode}
       />
 
-      {/* Controles orbitales: DESACTIVADOS en modo VR para permitir el giroscopio */}
+      {/* Controles orbitales: DESACTIVADOS en modo VR */}
       <OrbitControls
         ref={orbitRef}
         enabled={!followActive && !vrMode}
@@ -89,8 +92,11 @@ export function Scene({
         minDistance={1}
       />
 
-      {/* Control del Giroscopio montado solo cuando VR esta activo */}
-      {vrMode && (
+      {/* Gestor Nativo WebXR con boton oficial y soporte Cardboard */}
+      <WebXRManager onSessionChange={setVrMode} onTriggerRef={onWebXRTriggerRef} />
+
+      {/* Giroscopio y Estereo de respaldo (cuando no hay sesion nativa WebXR activa) */}
+      {vrMode && !navigator.xr && (
         <VRDeviceOrientation
           onRecenterRef={onRecenterRef}
           carObj={carObj}
@@ -98,8 +104,8 @@ export function Scene({
         />
       )}
 
-      {/* Gestor Estereoscopico VR montado solo cuando VR esta activo */}
-      {vrMode && <StereoVRManager eyeSep={0.064} />}
+      {/* Gestor Estereoscopico de respaldo cuando no hay sesion WebXR nativa */}
+      {vrMode && !navigator.xr && <StereoVRManager eyeSep={0.064} />}
     </Canvas>
   );
 }
